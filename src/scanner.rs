@@ -8,7 +8,6 @@ pub struct Scanner {
     start: usize,
     current: usize,
     line: usize,
-    keywords: HashMap<String, TokenType>,
 }
 
 impl Scanner {
@@ -19,7 +18,6 @@ impl Scanner {
             start: 0,
             current: 0,
             line: 1,
-            keywords: HashMap::new(),
         }
     }
 
@@ -107,9 +105,12 @@ impl Scanner {
                                     break;
                                 }
                             }
+                        } else 
+                            if self.is_match('*') {
+                                // multi-line comment
+                                self.scan_comment()?;   
                         } else {
-                            let tok = TokenType::Slash;
-                            self.add_token(tok);
+                            self.add_token(TokenType::Slash);
                         };
                     },
             ' ' | '\r' | '\t' => {},
@@ -132,6 +133,36 @@ impl Scanner {
                 },
         };
         Ok(())
+    }
+
+    fn scan_comment(&mut self) -> Result<(), LoxError>{
+        loop {
+            match self.peek() {
+                Some('*') => {
+                    self.advance();
+                    if self.is_match('/') {
+                        return Ok(());
+                    }
+                },
+                Some('/') => {
+                    self.advance();
+                    if self.is_match('*') {
+                        self.scan_comment()?;
+                    }
+                },
+                Some('\n') => {
+                    self.advance();
+                    self.line += 1;
+                }
+                None => {
+                    return Err(
+                        LoxError::error(self.line, "Unterminated comment".to_string()));         
+                }
+                _ => {
+                    self.advance();
+                }
+            }
+        }
     }
 
     fn string(&mut self) -> Result<(), LoxError> {
